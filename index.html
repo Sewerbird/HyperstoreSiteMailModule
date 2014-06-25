@@ -19,6 +19,11 @@
 					<div id="content"></div>
 				</div>
 			</div>
+			<div class="row">
+				<div class="col-lg-12 col-12">
+					<div id="content2"></div>
+				</div>
+			</div>
 		</div>
 
 		
@@ -30,12 +35,22 @@
 	    <script src="http://momentjs.com/downloads/moment-with-langs.min.js"></script>
 	    <script src="readmore.min.js"></script>
 	    <script src="bootstrap.min.js"></script>
-	    <script src="hyperstoreSiteMailModule.js"></script>
+	    <script type="text/jsx" src="hyperstoreQAModule.js"></script>
+	    <script type="text/jsx" src="hyperstoreSiteMailModule.js"></script>
 		<script type="text/jsx">
-			var qaModule = new HyperstoreSiteMailModule(
+			var mailModule = new HyperstoreSiteMailModule(
 				"content",
 				"http://reasonable.999geeks.pl/siteMail",
-				{}
+				{});
+			var qaModule = new HyperstoreQAModule(
+				"content2",
+				"53aa76455f5ebe05e1000000",
+				"http://reasonable.999geeks.pl/qANDaTopics",
+				"http://reasonable.999geeks.pl/qANDaAnswers", 
+				"http://reasonable.999geeks.pl/comments",
+				{commentModuleOptions:{hideCommentsHeader:true, hideCommentsWhenEmptyAndSignedOut: true}},
+				function(a,b,c,d){console.log(a,b,c,d)});
 		</script>
+
 	</body>
 </html>
