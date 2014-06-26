@@ -5,6 +5,8 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 	var module = this;
 	module.mailStore = new Backwire.Hyperstore(mailURL);
 	module.userStore = new Backwire.Hyperstore(userURL);
+	module.mailStore.resetReactivity();
+	module.userStore.resetReactivity();
 	module.user = false;
 	var MailModule = React.createClass({displayName:"MailModule",
 			getInitialState: function(){
@@ -31,12 +33,13 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 							self.setState({'outbox':{header:"Outbox", emails:res}})
 						}
 						else
-							console.warn("Empty Inbox");
+							console.warn("Empty Outbox");
 					})
 				})
 				return {data:[]};
 			},
 			handleMailSubmit : function(recipient_name, text, subject){
+				var self = this;
 				module.userStore.findOne({username: recipient_name},function(res,err,ver){
 					if(err) throw err;
 					else if(res) 
@@ -68,7 +71,7 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 									if(res && !err)
 									{
 										console.log("Successfully got own copy ",res[0])
-										this.switchToOutbox({})
+										self.switchToOutbox({})
 									} else console.error("Error posting copy: ", err);
 								})
 								console.log("Successfully sent message ",res[0])
@@ -86,7 +89,6 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 				this.setState({currentView:'outbox',replySettings:{}});
 			},
 			switchToCompose : function(options){
-				console.log("TODO: passing data through here when appropriate");
 				this.setState({currentView:'compose',replySettings:options?options:{}});
 			},
 			render: function(){
@@ -168,15 +170,12 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 			$('#pagerBatchStatus').text(10);
 		},
 		setBatchSize: function(val){
-			console.log("TODO: Setting batch size to "+val);
 			this.setState({'batchSize':val});
 		},
 		handleMessageReply: function(message){
-			console.log("TODO: Handling message reply");
 			this.props.onReply(message);
 		},
 		handleMessageDeletion: function(id){
-			console.log("TODO: Handling message deletion");
 			module.mailStore.remove({_id: id},function(res,err,ver){
 				if(err) throw err
 			})
@@ -195,7 +194,6 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 			var result = [];
 			var self = this;
 			result = _.flatten(_.map(emailArray,function(email){
-				console.log("email",email);
 				return [MailBoxItem({onReply: self.handleMessageReply, onDeletion:self.handleMessageDeletion, message: email, personField: personField}),
 						MessageView({_id:email._id})];
 			}));
@@ -245,7 +243,6 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 	})
 	var MailBoxItem = React.createClass({displayName:"MailBoxItem",
 		toggleMessage: function(){
-			console.log("message toggled ", this.props.message);
 			var myID = this.props.message._id;
 			var message = this.props.message.message_text;
 			var target = $('#'+myID+'_view');
@@ -262,16 +259,13 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 			}
 		},
 		deleteMessage: function(){
-			console.log("deleting message");
 			var myID = this.props.message._id;
 			this.props.onDeletion(myID);
 		},
 		replyMessage: function(){
-			console.log("replying to message");
 			this.props.onReply(this.props.message);
 		},
 		render: function(){
-			console.info("message",this.props.message);
 			var subject = this.props.message.subject;
 			var date = moment(this.props.message.createdAt).format("ll");
 			var from = this.props.message[this.props.personField]
