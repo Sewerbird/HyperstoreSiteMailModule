@@ -1,9 +1,10 @@
 /**
 * @jsx React.DOM
 */
-function HyperstoreSiteMailModule(domTargetID, mailURL, options){
+function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 	var module = this;
 	module.mailStore = new Backwire.Hyperstore(mailURL);
+	module.userStore = new Backwire.Hyperstore(userURL);
 	module.user = false;
 	var MailModule = React.createClass({displayName:"MailModule",
 			getInitialState: function(){
@@ -12,52 +13,91 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, options){
 					module.user = res;
 					self.setState({'inbox':{header:"Your Inbox", emails:[]}});
 					self.setState({'outbox':{header:"Your Outbox", emails:[]}});
-					/*
-					module.mailStore.find({user_id:module.user},function(res,err,ver){
-						if(res && !err)
+					//Inbox Find
+					module.mailStore.find({owner_id: module.user._id, recipient_id: module.user._id},function(res,err,ver){
+						if(err) throw err
+						else if(res)
 						{
-							self.setState(res);
-							console.log(res);
+							self.setState({'inbox':{header:"Inbox", emails:res}})
 						}
-						else if(err) console.error(err);
-						else console.warn("Mail for user_id "+module.user._id+" not found.");
-					});*/
+						else
+							console.warn("Empty Inbox");
+					})
+					//Outbox Find
+					module.mailStore.find({owner_id: module.user._id, sender_id: module.user._id},function(res,err,ver){
+						if(err) throw err
+						else if(res)
+						{
+							self.setState({'outbox':{header:"Outbox", emails:res}})
+						}
+						else
+							console.warn("Empty Inbox");
+					})
 				})
 				return {data:[]};
 			},
-			handleMailSubmit : function(recipient, text){
-				/*
-				module.mailStore.insert(answer,function(res,err,ver){
-					if(res && !err)
+			handleMailSubmit : function(recipient_name, text, subject){
+				module.userStore.findOne({username: recipient_name},function(res,err,ver){
+					if(err) throw err;
+					else if(res) 
 					{
-						console.log("Successfully posted ",res[0])
-					} else console.error("Error posting answer: ", err);
+						if(!subject) subject = "(No Subject)"
+						var recipient = res;
+						var senderMemo = {
+							sender_id: module.user._id,
+							recipient_id: recipient._id,
+							message_text: text,
+							subject:subject,
+							owner_id: module.user._id,
+							sender_username: module.user.username,
+							recipient_username: recipient.username
+						}
+						var recipientMemo = {
+							sender_id: module.user._id,
+							recipient_id: recipient._id,
+							message_text: text,
+							subject:subject,
+							owner_id: recipient._id,
+							sender_username: module.user.username,
+							recipient_username: recipient.username
+						}
+						module.mailStore.insert(recipientMemo,function(res,err,ver){
+							if(res && !err)
+							{
+								module.mailStore.insert(senderMemo, function(res,err,ver){
+									if(res && !err)
+									{
+										console.log("Successfully got own copy ",res[0])
+										this.switchToOutbox({})
+									} else console.error("Error posting copy: ", err);
+								})
+								console.log("Successfully sent message ",res[0])
+							} else console.error("Error posting message: ", err);
+						})	
+					}
+					else
+						alert("Unable to send message: recipient doesn't exist");
 				})
-				*/
-				console.log("Dear "+recipient+": "+text)
-				this.switchToOutbox({})
 			},
 			switchToInbox : function(options){
-				console.log("TODO: switching to inbox");
-				this.setState({currentView:'inbox'});
+				this.setState({currentView:'inbox',replySettings:{}});
 			},
 			switchToOutbox : function(options){
-				console.log("TODO: switching to outbox");
-				this.setState({currentView:'outbox'});
+				this.setState({currentView:'outbox',replySettings:{}});
 			},
 			switchToCompose : function(options){
-				console.log("TODO: switching to compose");
-				this.setState({currentView:'compose'});
+				console.log("TODO: passing data through here when appropriate");
+				this.setState({currentView:'compose',replySettings:options?options:{}});
 			},
 			render: function(){
 				//Standard view
 				var currentView;
 				if(this.state.currentView == 'compose')
-					currentView = ComposeView({onMail:this.handleMailSubmit})
+					currentView = ComposeView({onMail:this.handleMailSubmit, replySettings:this.state.replySettings})
 				else if(this.state.currentView == 'outbox')
-					currentView = BoxView(this.state.outbox)
+					currentView = BoxView({box:this.state.outbox, onReply:this.switchToCompose})
 				else //default to inbox
-					currentView = BoxView(this.state.inbox);
+					currentView = BoxView({box:this.state.inbox, onReply:this.switchToCompose});
 
 				//Make 'unread' badge counts
 				if(this.state.outbox) var outboxSize = _.size(this.state.outbox.emails);
@@ -90,8 +130,8 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, options){
 			this.props.onMail(recipient, mailtext);
 		},
 		render: function(){
-			var optReceipient = this.props.optUser?this.props.optUser:undefined;
-			var quotedText = this.props.quotedText?this.props.quotedText:"";
+			var optReceipient = this.props.replySettings && this.props.replySettings.sender_username? this.props.replySettings.sender_username:undefined;
+			var quotedText = this.props.replySettings && this.props.replySettings.message_text? '"'+this.props.replySettings.message_text+'"':undefined;
 			return(
 				<div className="panel panel-default" id="sendMessageForm">
 					<div className="panel-heading"><h4>Compose Message...</h4></div>
@@ -131,31 +171,41 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, options){
 			console.log("TODO: Setting batch size to "+val);
 			this.setState({'batchSize':val});
 		},
-		handleMessageReply: function(id){
+		handleMessageReply: function(message){
 			console.log("TODO: Handling message reply");
+			this.props.onReply(message);
 		},
 		handleMessageDeletion: function(id){
 			console.log("TODO: Handling message deletion");
+			module.mailStore.remove({_id: id},function(res,err,ver){
+				if(err) throw err
+			})
 		},
 		nextPage: function(){
-			console.log("TODO: Going next page");
 			var tPage = Math.min(this.state.page + 1,this.state.totPages-1);
 			this.setState({'page':tPage})
 			console.log("on page "+tPage);
 		},
 		prevPage: function(){
-			console.log("TODO: Going prev page");
 			var tPage = Math.max(this.state.page - 1,0);
 			this.setState({'page':tPage})
 			console.log("on page "+tPage);
 		},
+		mapMailsToViews: function(emailArray, personField){
+			var result = [];
+			var self = this;
+			result = _.flatten(_.map(emailArray,function(email){
+				console.log("email",email);
+				return [MailBoxItem({onReply: self.handleMessageReply, onDeletion:self.handleMessageDeletion, message: email, personField: personField}),
+						MessageView({_id:email._id})];
+			}));
+			return result;
+		},
 		render: function(){
-			/*
-			var mails = this.props.data.map(function (comment){
-				return MailBoxItem({});
-			});*/
-			var mails = [MailBoxItem({onReply:this.handleMessageReply, onDeletion:this.handleMessageDeletion}),MessageView({}),MailBoxItem({}),MailBoxItem({})]
-			var header = this.props.header?this.props.header:"Blank"
+			var header = this.props.box && this.props.box.header?this.props.box.header:"Blank"
+			var relevantPerson = header != "Outbox"?"Sender":"Sent To";
+			var relevantPersonField = header != "Outbox"?"sender_username":"recipient_username";
+			var mails = this.props.box && this.props.box.emails?this.mapMailsToViews(this.props.box.emails, relevantPersonField):[];
 			var nextDisabled = this.state.page == this.state.totPages-1 ? "disabled" : "active"
 			var prevDisabled = this.state.page == 0 ? "disabled" : "active"
 			return (
@@ -179,7 +229,7 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, options){
 						<div className="panel-body">
 							<table className="table" style={{'max-width':"100%",'min-width':"100%"}}>
 								<thead>
-									<th colSpan="2">Sender</th>
+									<th colSpan="2">{relevantPerson}</th>
 									<th colSpan="7">Subject</th>
 									<th colSpan="2">Date</th>
 									<th colSpan="1">Actions</th>
@@ -195,11 +245,11 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, options){
 	})
 	var MailBoxItem = React.createClass({displayName:"MailBoxItem",
 		toggleMessage: function(){
-			console.log("message toggled");
-			var myID = "foo"
+			console.log("message toggled ", this.props.message);
+			var myID = this.props.message._id;
+			var message = this.props.message.message_text;
 			var target = $('#'+myID+'_view');
 			var targetText = $('#'+myID+'_message');
-			var message = "I am a teacup. I thought you might like to know that. After all, you come from a conservative family and I figured it'd be best to be upfront about it."
 			if(target.is(":hidden"))
 			{
 				target.show();
@@ -213,28 +263,26 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, options){
 		},
 		deleteMessage: function(){
 			console.log("deleting message");
-			var myID = "foo";
+			var myID = this.props.message._id;
 			this.props.onDeletion(myID);
 		},
 		replyMessage: function(){
 			console.log("replying to message");
-			var message = "I am a teacup. I thought you might like to know that. After all, you come from a conservative family and I figured it'd be best to be upfront about it."
-			var from = "Sewerbird";
-			var myID = "foo";
-			this.props.onReply(myID, message);
+			this.props.onReply(this.props.message);
 		},
 		render: function(){
-			var subject = "Sign Up Now";
-			var date = moment(new Date()).format("ll");
-			var from = "Sewerbird"
-			var id = "foo";
+			console.info("message",this.props.message);
+			var subject = this.props.message.subject;
+			var date = moment(this.props.message.createdAt).format("ll");
+			var from = this.props.message[this.props.personField]
+			var id = this.props.message._id;
 			return (
 					<tr id={id}>
 						<td colSpan="2">
 							<span>{from}</span>
 						</td>
 						<td colSpan="7">
-							<a href="#">{subject}</a>
+							<a href="#" onClick={this.toggleMessage}>{subject}</a>
 						</td>
 						<td colSpan="2">
 							<small >{date}</small>
@@ -259,8 +307,8 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, options){
 	var MessageView = React.createClass({displayName:"MessageView",
 		render: function(){
 			var subject = "Signup Now for Free Mortgage!";
-			var id = "foo"+"_view"
-			var tid = "foo"+"_message"
+			var id = this.props._id+"_view"
+			var tid = this.props._id+"_message"
 			return(
 				<tr id={id} style={{display:'none'}}>
 					<td colSpan="12">
