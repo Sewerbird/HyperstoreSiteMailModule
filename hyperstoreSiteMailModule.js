@@ -304,14 +304,9 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 			var date = moment(this.props.message.createdAt).format("ll");
 			var from = this.props.message[this.props.personField]
 			var id = this.props.message._id;
-			var isread = !this.props.message.hasRead?{'border-style':'solid',
-														'border-right':'none',
-														'border-bottom':'none',
-														'border-top':'none',
-														'border-left':'thick single',
-														'border-left-color':'cyan'}:{};
+			var isread = this.props.message.hasRead?"mail-read":"mail-unread";
 			return (
-					<tr id={id} style={isread}>
+					<tr id={id} className={isread}>
 						<td colSpan="2">
 							<span>{from}</span>
 						</td>
