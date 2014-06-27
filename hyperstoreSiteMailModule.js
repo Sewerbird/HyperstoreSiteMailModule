@@ -16,7 +16,7 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 					self.setState({'inbox':{header:"Your Inbox", emails:[]}});
 					self.setState({'outbox':{header:"Your Outbox", emails:[]}});
 					//Inbox Find
-					module.mailStore.find({owner_id: module.user._id, recipient_id: module.user._id},function(res,err,ver){
+					module.mailStore.find({user_id: module.user._id, recipient_id: module.user._id},function(res,err,ver){
 						if(err) throw err
 						else if(res)
 						{
@@ -26,7 +26,7 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 							console.warn("Empty Inbox");
 					})
 					//Outbox Find
-					module.mailStore.find({owner_id: module.user._id, sender_id: module.user._id},function(res,err,ver){
+					module.mailStore.find({user_id: module.user._id, sender_id: module.user._id},function(res,err,ver){
 						if(err) throw err
 						else if(res)
 						{
@@ -51,7 +51,7 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 							recipient_id: recipient._id,
 							message_text: text,
 							subject:subject,
-							owner_id: module.user._id,
+							user_id: module.user._id,
 							sender_username: module.user.username,
 							recipient_username: recipient.username
 						}
@@ -60,7 +60,7 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 							recipient_id: recipient._id,
 							message_text: text,
 							subject:subject,
-							owner_id: recipient._id,
+							user_id: recipient._id,
 							sender_username: module.user.username,
 							recipient_username: recipient.username
 						}
@@ -128,10 +128,12 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 		onMail: function(event){
 			event.preventDefault();
 			var recipient = this.refs.recipient.getDOMNode().value;
-			var mailtext = this.refs.mailText.getDOMNode().value
-			this.props.onMail(recipient, mailtext);
+			var mailtext = this.refs.mailText.getDOMNode().value;
+			var subject = this.refs.subject.getDOMNode().value;
+			this.props.onMail(recipient, mailtext, subject);
 		},
 		render: function(){
+			var optSubject = this.props.replySettings && this.props.replySettings.subject?this.props.replySettings.subject:undefined;
 			var optReceipient = this.props.replySettings && this.props.replySettings.sender_username? this.props.replySettings.sender_username:undefined;
 			var quotedText = this.props.replySettings && this.props.replySettings.message_text? '"'+this.props.replySettings.message_text+'"':undefined;
 			return(
@@ -139,11 +141,15 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 					<div className="panel-heading"><h4>Compose Message...</h4></div>
 					<form className="panel-body" onSubmit={this.onMail}>
 						<div className="input-group">
-						  <span className="input-group-addon"><span className="glyphicon glyphicon-user"></span></span>
-						  <input type="text" ref="recipient" tabIndex="1" className="form-control" placeholder="Send To..." value={optReceipient}/>
-							  <span className="input-group-addon" style={{padding:"1px"}}><button tabIndex="3" type="submit" className="btn btn-sm btn-success"><span className="glyphicon glyphicon-send"></span></button></span>
+						  	<span className="input-group-addon"><span className="glyphicon glyphicon-user"></span></span>
+						  	<input type="text" ref="recipient" tabIndex="1" className="form-control" placeholder="Send To..." value={optReceipient}/>
+							  	<span className="input-group-addon" style={{padding:"1px"}}><button tabIndex="4" type="submit" className="btn btn-sm btn-success"><span className="glyphicon glyphicon-send"></span></button></span>
 						</div>
-						<textarea ref="mailText" className="form-control" tabIndex="2" rows="10" style={{'max-width':"100%"}}>{quotedText}</textarea>
+						<div className="input-group">
+							<span className="input-group-addon"><span className="glyphicon glyphicon-bullhorn"></span></span>						  
+						  	<input type="text" ref="subject" tabIndex="2" className="form-control" placeholder="(No Subject)" value={optSubject}/>
+						</div>
+						<textarea ref="mailText" className="form-control" tabIndex="3" rows="10" style={{'max-width':"100%"}}>{quotedText}</textarea>
 					</form>
 				</div>		
 			)	
