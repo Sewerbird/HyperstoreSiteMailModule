@@ -14,7 +14,7 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 					self.setState({'inbox':{header:"Your Inbox", emails:[]}});
 					self.setState({'outbox':{header:"Your Outbox", emails:[]}});
 					//Inbox Find
-					module.mailStore.find({user_id: module.user._id, recipient_id: module.user._id},function(res,err,ver){
+					module.mailStore.find({user_id: module.user._id, recipient_id: module.user._id, box: 'inbox'},{sort:{createdAt:1}},function(res,err,ver){
 						if(err) throw err
 						else if(_.size(res)>0)
 						{
@@ -25,7 +25,7 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 							console.warn("Empty Inbox");
 					})
 					//Outbox Find
-					module.mailStore.find({user_id: module.user._id, sender_id: module.user._id},function(res,err,ver){
+					module.mailStore.find({user_id: module.user._id, sender_id: module.user._id, box:'outbox'},{sort:{createdAt:1}},function(res,err,ver){
 						if(err) throw err
 						else if(res)
 						{
@@ -62,7 +62,8 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 							subject:subject,
 							user_id: module.user._id,
 							sender_username: module.user.username,
-							recipient_username: recipient.username
+							recipient_username: recipient.username,
+							box:'outbox'
 						}
 						var recipientMemo = {
 							sender_id: module.user._id,
@@ -71,7 +72,8 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 							subject:subject,
 							user_id: recipient._id,
 							sender_username: module.user.username,
-							recipient_username: recipient.username
+							recipient_username: recipient.username,
+							box:'inbox'
 						}
 						module.mailStore.insert(recipientMemo,function(res,err,ver){
 							if(res && !err)
@@ -111,8 +113,8 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 					currentView = BoxView({box:this.state.inbox, onReply:this.switchToCompose, onRead:this.handleMailRead});
 
 				//Make 'unread' badge counts
-				if(this.state.outbox) var outboxSize = _.size(this.state.outbox.emails);
-				if(this.state.inbox) var inboxSize = _.size(this.state.inbox.emails);
+				if(this.state.outbox) var outboxSize = _.size(_.filter(this.state.outbox.emails,function(message){return !message.hasRead}));
+				if(this.state.inbox) var inboxSize = _.size(_.filter(this.state.inbox.emails,function(message){return !message.hasRead}));
 
 				return (
 						<div className="MailModule panel panel-default container" style={{"padding":"5px"}} >	 
