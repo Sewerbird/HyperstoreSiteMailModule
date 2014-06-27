@@ -5,8 +5,6 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 	var module = this;
 	module.mailStore = new Backwire.Hyperstore(mailURL);
 	module.userStore = new Backwire.Hyperstore(userURL);
-	module.mailStore.resetReactivity();
-	module.userStore.resetReactivity();
 	module.user = false;
 	var MailModule = React.createClass({displayName:"MailModule",
 			getInitialState: function(){
@@ -18,8 +16,9 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 					//Inbox Find
 					module.mailStore.find({user_id: module.user._id, recipient_id: module.user._id},function(res,err,ver){
 						if(err) throw err
-						else if(res)
+						else if(_.size(res)>0)
 						{
+							console.info(res,module.user._id,module.user._id);
 							self.setState({'inbox':{header:"Inbox", emails:res}})
 						}
 						else
@@ -37,6 +36,16 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 					})
 				})
 				return {data:[]};
+			},
+			handleMailRead : function(mail){
+				var self = this;
+				module.mailStore.update({_id:mail._id, user_id: module.user._id},{$set: {hasRead:true}},function(res,err,ver){
+					if(err) throw err;
+					else if(res)
+					{
+
+					}
+				});
 			},
 			handleMailSubmit : function(recipient_name, text, subject){
 				var self = this;
@@ -97,9 +106,9 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 				if(this.state.currentView == 'compose')
 					currentView = ComposeView({onMail:this.handleMailSubmit, replySettings:this.state.replySettings})
 				else if(this.state.currentView == 'outbox')
-					currentView = BoxView({box:this.state.outbox, onReply:this.switchToCompose})
+					currentView = BoxView({box:this.state.outbox, onReply:this.switchToCompose, onRead:this.handleMailRead})
 				else //default to inbox
-					currentView = BoxView({box:this.state.inbox, onReply:this.switchToCompose});
+					currentView = BoxView({box:this.state.inbox, onReply:this.switchToCompose, onRead:this.handleMailRead});
 
 				//Make 'unread' badge counts
 				if(this.state.outbox) var outboxSize = _.size(this.state.outbox.emails);
@@ -107,7 +116,6 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 
 				return (
 						<div className="MailModule panel panel-default container" style={{"padding":"5px"}} >	 
-							<div class="row">
 								<div className="col-md-2 col-2 well well-sm" id="mailSidebar" style={{height:"100%"}}>
 									<h4 style={{'text-align':'center'}}>Options</h4>
 									<ul className="list-group">
@@ -119,7 +127,6 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 								<div className="col-md-10 col-10" id="mailContent">
 									{currentView}
 								</div>
-							</div>
 						</div>
 					)
 			}
@@ -130,7 +137,7 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 			var recipient = this.refs.recipient.getDOMNode().value;
 			var mailtext = this.refs.mailText.getDOMNode().value;
 			var subject = this.refs.subject.getDOMNode().value;
-			this.props.onMail(recipient, mailtext, subject);
+			this.props.onMail(recipient, mailtext,subject);
 		},
 		render: function(){
 			var optSubject = this.props.replySettings && this.props.replySettings.subject?this.props.replySettings.subject:undefined;
@@ -142,12 +149,12 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 					<form className="panel-body" onSubmit={this.onMail}>
 						<div className="input-group">
 						  	<span className="input-group-addon"><span className="glyphicon glyphicon-user"></span></span>
-						  	<input type="text" ref="recipient" tabIndex="1" className="form-control" placeholder="Send To..." value={optReceipient}/>
+						  	<input type="text" ref="recipient" tabIndex="1" className="form-control" placeholder="Send To..." defaultValue={optReceipient}/>
 							  	<span className="input-group-addon" style={{padding:"1px"}}><button tabIndex="4" type="submit" className="btn btn-sm btn-success"><span className="glyphicon glyphicon-send"></span></button></span>
 						</div>
 						<div className="input-group">
 							<span className="input-group-addon"><span className="glyphicon glyphicon-bullhorn"></span></span>						  
-						  	<input type="text" ref="subject" tabIndex="2" className="form-control" placeholder="(No Subject)" value={optSubject}/>
+						  	<input type="text" ref="subject" tabIndex="2" className="form-control" placeholder="(No Subject)" defaultValue={optSubject}/>
 						</div>
 						<textarea ref="mailText" className="form-control" tabIndex="3" rows="10" style={{'max-width':"100%"}}>{quotedText}</textarea>
 					</form>
@@ -157,26 +164,40 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 	})
 	var BoxView = React.createClass({displayName:"BoxView",
 		getInitialState: function(){
+			if(this.props.box)
+				return {batchSize:10, totPages: Math.ceil(_.size(this.props.box.emails)/10), page:0}
 			return {batchSize:10, totPages: 1, page:0}
 		},
-		setBatchSize100: function(){
+		componentWillReceiveProps: function(){
+			this.setBatchSize(10);
+		},
+		setBatchSize100: function(event){
+			event.preventDefault();
 			this.setBatchSize(100)
-			$('#pagerBatchStatus').text(100);
 		},
-		setBatchSize50: function(){
+		setBatchSize50: function(event){
+			event.preventDefault();
 			this.setBatchSize(50)
-			$('#pagerBatchStatus').text(50);
 		},
-		setBatchSize25: function(){
+		setBatchSize25: function(event){
+			event.preventDefault();
 			this.setBatchSize(25)
-			$('#pagerBatchStatus').text(25);
 		},
-		setBatchSize10: function(){
+		setBatchSize10: function(event){
+			event.preventDefault();
 			this.setBatchSize(10)
-			$('#pagerBatchStatus').text(10);
 		},
 		setBatchSize: function(val){
-			this.setState({'batchSize':val});
+			$('#pagerBatchStatus').text(val);
+			if(this.props.box)
+			this.replaceState(
+				{totPages:Math.ceil(_.size(this.props.box.emails)/val),
+				page:Math.floor(this.state.page * this.state.batchSize/val),
+				batchSize:val}
+			);
+		},
+		handleMailRead: function(message){
+			this.props.onRead(message);
 		},
 		handleMessageReply: function(message){
 			this.props.onReply(message);
@@ -199,8 +220,10 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 		mapMailsToViews: function(emailArray, personField){
 			var result = [];
 			var self = this;
-			result = _.flatten(_.map(emailArray,function(email){
-				return [MailBoxItem({onReply: self.handleMessageReply, onDeletion:self.handleMessageDeletion, message: email, personField: personField}),
+			var inputArray = emailArray.slice(Math.max(this.state.batchSize * this.state.page,0), Math.min(this.state.batchSize * (this.state.page +1),_.size(emailArray)));
+			console.info("inputarray:",inputArray);
+			result = _.flatten(_.map(inputArray,function(email){
+				return [MailBoxItem({onReply: self.handleMessageReply, onRead:self.handleMailRead, onDeletion:self.handleMessageDeletion, message: email, personField: personField}),
 						MessageView({_id:email._id})];
 			}));
 			return result;
@@ -210,7 +233,7 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 			var relevantPerson = header != "Outbox"?"Sender":"Sent To";
 			var relevantPersonField = header != "Outbox"?"sender_username":"recipient_username";
 			var mails = this.props.box && this.props.box.emails?this.mapMailsToViews(this.props.box.emails, relevantPersonField):[];
-			var nextDisabled = this.state.page == this.state.totPages-1 ? "disabled" : "active"
+			var nextDisabled = this.state.page < this.state.totPages-1?"active":"disabled"
 			var prevDisabled = this.state.page == 0 ? "disabled" : "active"
 			return (
 					<div className="BoxView panel panel-default">
@@ -219,7 +242,7 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 							<div className="btn-group pull-right" style={{'display':'inline-block'}}>
 								<button type="button" className={"btn btn-default "+prevDisabled} onClick={this.prevPage}>Prev</button>
 								<div className="btn-group">
-									<button id="pagerBatchStatus" type="button" className="btn btn-default dropdown-toggle" data-toggle="dropdown">{this.state.batchSize}<span class="caret"></span></button>
+									<button id="pagerBatchStatus" type="button" className="btn btn-default dropdown-toggle" data-toggle="dropdown">{this.state.batchSize}</button>
 									    <ul className="dropdown-menu">
 									      <li><a href="#" onClick={this.setBatchSize100}>100</a></li>
 									      <li><a href="#" onClick={this.setBatchSize50}>50</a></li>
@@ -253,6 +276,8 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 			var message = this.props.message.message_text;
 			var target = $('#'+myID+'_view');
 			var targetText = $('#'+myID+'_message');
+			if(!message.hasRead)
+				this.readMessage();
 			if(target.is(":hidden"))
 			{
 				target.show();
@@ -263,6 +288,9 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 				target.hide();
 				targetText.text("");
 			}
+		},
+		readMessage: function(){
+			this.props.onRead(this.props.message);
 		},
 		deleteMessage: function(){
 			var myID = this.props.message._id;
@@ -276,8 +304,14 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 			var date = moment(this.props.message.createdAt).format("ll");
 			var from = this.props.message[this.props.personField]
 			var id = this.props.message._id;
+			var isread = !this.props.message.hasRead?{'border-style':'solid',
+														'border-right':'none',
+														'border-bottom':'none',
+														'border-top':'none',
+														'border-left':'thick single',
+														'border-left-color':'cyan'}:{};
 			return (
-					<tr id={id}>
+					<tr id={id} style={isread}>
 						<td colSpan="2">
 							<span>{from}</span>
 						</td>
