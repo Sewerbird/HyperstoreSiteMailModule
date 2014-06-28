@@ -41,6 +41,7 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 			},
 			handleMailRead : function(mail){
 				var self = this;
+				if(mail.hasRead)return;
 				module.mailStore.update({_id:mail._id, user_id: module.user._id},{$set: {hasRead:true}},function(res,err,ver){
 					if(err) throw err;
 					else if(res)
