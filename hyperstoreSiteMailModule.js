@@ -13,27 +13,34 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 					module.user = res;
 					self.setState({'inbox':{header:"Your Inbox", emails:[]}});
 					self.setState({'outbox':{header:"Your Outbox", emails:[]}});
-					//Inbox Find
-					module.mailStore.find({user_id: module.user._id, recipient_id: module.user._id, box: 'inbox'},{sort:{createdAt:1}},function(res,err,ver){
-						if(err) throw err
-						else if(_.size(res)>0)
-						{
-							console.info(res,module.user._id,module.user._id);
-							self.setState({'inbox':{header:"Inbox", emails:res}})
-						}
-						else
-							console.warn("Empty Inbox");
-					})
-					//Outbox Find
-					module.mailStore.find({user_id: module.user._id, sender_id: module.user._id, box:'outbox'},{sort:{createdAt:1}},function(res,err,ver){
-						if(err) throw err
-						else if(res)
-						{
-							self.setState({'outbox':{header:"Outbox", emails:res}})
-						}
-						else
-							console.warn("Empty Outbox");
-					})
+					console.log("getuser is ",res,err,ver);
+					module.mailStore.resetReactivity(function(err){
+						//Inbox Find
+						module.mailStore.find({user_id: module.user._id, recipient_id: module.user._id, box: 'inbox'},{sort:{createdAt:-1}},function(res,err,ver){
+							console.info("@#*)U@#%&)@#%&)");
+							console.log("got find back",res,err,ver);
+							if(err) throw err
+							else if(_.size(res)>0)
+							{
+								console.info(res,module.user._id,module.user._id);
+								self.setState({'inbox':{header:"Inbox", emails:res}})
+							}
+							else
+								console.warn("Empty Inbox");
+						})
+						//Outbox Find
+						module.mailStore.find({user_id: module.user._id, sender_id: module.user._id, box:'outbox'},{sort:{createdAt:-1}},function(res,err,ver){
+							console.info("@#*)U@#%&)@#%&)");
+							console.log("got find back",res,err,ver);
+							if(err) throw err
+							else if(_.size(res)>0)
+							{
+								self.setState({'outbox':{header:"Outbox", emails:res}})
+							}
+							else
+								console.warn("Empty Outbox");
+						})
+					});
 				})
 				return {data:[]};
 			},
@@ -49,7 +56,7 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 			},
 			handleMailSubmit : function(recipient_name, text, subject){
 				var self = this;
-				module.userStore.findOne({username: recipient_name},function(res,err,ver){
+				module.userStore.findOne({username: recipient_name},{reactive:false},function(res,err,ver){
 					if(err) throw err;
 					else if(res) 
 					{
@@ -105,6 +112,7 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 			render: function(){
 				//Standard view
 				var currentView;
+				console.log("Rendering main view. this.state = ",this.state);
 				if(this.state.currentView == 'compose')
 					currentView = ComposeView({onMail:this.handleMailSubmit, replySettings:this.state.replySettings})
 				else if(this.state.currentView == 'outbox')
@@ -223,7 +231,6 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 			var result = [];
 			var self = this;
 			var inputArray = emailArray.slice(Math.max(this.state.batchSize * this.state.page,0), Math.min(this.state.batchSize * (this.state.page +1),_.size(emailArray)));
-			console.info("inputarray:",inputArray);
 			result = _.flatten(_.map(inputArray,function(email){
 				return [MailBoxItem({onReply: self.handleMessageReply, onRead:self.handleMailRead, onDeletion:self.handleMessageDeletion, message: email, personField: personField}),
 						MessageView({_id:email._id})];
@@ -231,6 +238,7 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 			return result;
 		},
 		render: function(){
+			console.log("Showing box view",this.props.box);
 			var header = this.props.box && this.props.box.header?this.props.box.header:"Blank"
 			var relevantPerson = header != "Outbox"?"Sender":"Sent To";
 			var relevantPersonField = header != "Outbox"?"sender_username":"recipient_username";
@@ -303,7 +311,7 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 		},
 		render: function(){
 			var subject = this.props.message.subject;
-			var date = moment(this.props.message.createdAt).format("ll");
+			var date = moment(this.props.message.createdAt).format("llll");
 			var from = this.props.message[this.props.personField]
 			var id = this.props.message._id;
 			var isread = this.props.message.hasRead?"mail-read":"mail-unread";
