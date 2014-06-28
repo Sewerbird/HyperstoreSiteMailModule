@@ -13,12 +13,9 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 					module.user = res;
 					self.setState({'inbox':{header:"Your Inbox", emails:[]}});
 					self.setState({'outbox':{header:"Your Outbox", emails:[]}});
-					console.log("getuser is ",res,err,ver);
 					module.mailStore.resetReactivity(function(err){
 						//Inbox Find
 						module.mailStore.find({user_id: module.user._id, recipient_id: module.user._id, box: 'inbox'},{sort:{createdAt:-1}},function(res,err,ver){
-							console.info("@#*)U@#%&)@#%&)");
-							console.log("got find back",res,err,ver);
 							if(err) throw err
 							else if(_.size(res)>0)
 							{
@@ -30,8 +27,6 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 						})
 						//Outbox Find
 						module.mailStore.find({user_id: module.user._id, sender_id: module.user._id, box:'outbox'},{sort:{createdAt:-1}},function(res,err,ver){
-							console.info("@#*)U@#%&)@#%&)");
-							console.log("got find back",res,err,ver);
 							if(err) throw err
 							else if(_.size(res)>0)
 							{
@@ -112,7 +107,6 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 			render: function(){
 				//Standard view
 				var currentView;
-				console.log("Rendering main view. this.state = ",this.state);
 				if(this.state.currentView == 'compose')
 					currentView = ComposeView({onMail:this.handleMailSubmit, replySettings:this.state.replySettings})
 				else if(this.state.currentView == 'outbox')
@@ -238,7 +232,6 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 			return result;
 		},
 		render: function(){
-			console.log("Showing box view",this.props.box);
 			var header = this.props.box && this.props.box.header?this.props.box.header:"Blank"
 			var relevantPerson = header != "Outbox"?"Sender":"Sent To";
 			var relevantPersonField = header != "Outbox"?"sender_username":"recipient_username";
