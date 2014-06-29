@@ -13,29 +13,37 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 					module.user = res;
 					self.setState({'inbox':{header:"Your Inbox", emails:[]}});
 					self.setState({'outbox':{header:"Your Outbox", emails:[]}});
-					module.mailStore.resetReactivity(function(err){
-						//Inbox Find
-						module.mailStore.find({user_id: module.user._id, recipient_id: module.user._id, box: 'inbox'},{sort:{createdAt:-1}},function(res,err,ver){
-							if(err) throw err
-							else if(_.size(res)>0)
-							{
-								console.info(res,module.user._id,module.user._id);
-								self.setState({'inbox':{header:"Inbox", emails:res}})
-							}
-							else
-								console.warn("Empty Inbox");
-						})
-						//Outbox Find
-						module.mailStore.find({user_id: module.user._id, sender_id: module.user._id, box:'outbox'},{sort:{createdAt:-1}},function(res,err,ver){
-							if(err) throw err
-							else if(_.size(res)>0)
-							{
-								self.setState({'outbox':{header:"Outbox", emails:res}})
-							}
-							else
-								console.warn("Empty Outbox");
-						})
-					});
+					if(module.user._id)
+					{
+						module.mailStore.resetReactivity(function(err){
+							//Inbox Find
+							module.mailStore.find({user_id: module.user._id, recipient_id: module.user._id, box: 'inbox'},{sort:{createdAt:-1}},function(res,err,ver){
+								if(err) throw err
+								else if(_.size(res)>0)
+								{
+									self.setState({'inbox':{header:"Inbox", emails:res}})
+								}
+								else
+								{
+									console.warn("Empty Inbox");
+									self.forceUpdate();
+								}
+							})
+							//Outbox Find
+							module.mailStore.find({user_id: module.user._id, sender_id: module.user._id, box:'outbox'},{sort:{createdAt:-1}},function(res,err,ver){
+								if(err) throw err
+								else if(_.size(res)>0)
+								{
+									self.setState({'outbox':{header:"Outbox", emails:res}})
+								}
+								else
+								{
+									console.warn("Empty Outbox");
+									self.forceUpdate();
+								}
+							})
+						});
+					}
 				})
 				return {data:[]};
 			},
@@ -84,11 +92,9 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 								module.mailStore.insert(senderMemo, function(res,err,ver){
 									if(res && !err)
 									{
-										console.log("Successfully got own copy ",res[0])
 										self.switchToOutbox({})
 									} else console.error("Error posting copy: ", err);
 								})
-								console.log("Successfully sent message ",res[0])
 							} else console.error("Error posting message: ", err);
 						})	
 					}
@@ -352,7 +358,7 @@ function HyperstoreSiteMailModule(domTargetID, mailURL, userURL, options){
 		}
 
 	})
-	React.renderComponent(
+	var renderedModule = React.renderComponent(
 		<MailModule />,
 		document.getElementById(domTargetID)
 	);	
